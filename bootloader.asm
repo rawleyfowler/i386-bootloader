@@ -1,23 +1,32 @@
 extern main                     ; Our C main
 
 section .text
+global _start
+global print
+
 bits 16
-    mov si, 0                   ; si needs to be 0 as we will use it to print the string
+
+kernel_msg:
+    db "Loading Kernel", 0
+    
+loading_msg:
+    db "Loading kernel!", 0
+
+mov si, [loading_msg]
+call print
 
 print:
     mov ah, 0x0e                ; ah at 0x0e will allow for output to the terminal/teletype output
-    mov al, [string + si]       ; get the si'th character of string
+    mov al, byte [si]           ; get the si'th character of string
     int 0x10                    ; video services interrupt 10 (teletype)
-    add si, 1
-    cmp byte [string + si], 0   ; test if we're at the end of the string
+    inc si
+    cmp byte [si], 0            ; test if we're at the end of the string
     jne print                   ; if we have more characters in the string repeat print
+    popa
     ret
 
-string:
-    db "Loading kernel!", 0
-
-    times 510 - ($ - $$) db 0       ; fit this inside of the 512 bit sector, by filling with zeroes
-    dw 0xaa55                       ; last two bytes of a boot sector, magic number. hence 510 vs 512
+times 510 - ($ - $$) db 0 ; fit this inside of the 512 bit sector, by filling with zeroes
+dw 0xaa55 ; last two bytes of a boot sector, magic number. hence 510 vs 512
 
 ;;; Kernel loading segment
 bits 32
@@ -70,6 +79,8 @@ a20wait2:
 
 kernel:
     ; bx = 0, es:bx = 0x1000:0
+    mov si, [kernel_msg]
+    call print
     mov bx, 0x1000
     mov es, bx                  ; moving to 0x10000 physical
     mov bx, 0x0
